@@ -1,0 +1,10 @@
+[package]
+name = "rusty-os"
+version = "0.1.0"
+authors = ["Christopher McFall <mcfallcl@gmail.com>"]
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+rlibc = "1.0.0"
