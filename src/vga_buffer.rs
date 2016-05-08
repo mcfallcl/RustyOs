@@ -85,12 +85,25 @@ impl Writer {
     }
 }
 
+impl ::core::fmt::Write for Writer {
+    fn write_str(&mut self, s: &str) -> ::core::fmt::Result {
+        for byte in s.bytes() {
+            self.write_byte(byte);
+        }
+        Ok(())
+    }
+}
+
 pub fn print_something() {
+    use core::fmt::Write;
+
     let mut writer = Writer {
         column_pos: 0,
         color_code: ColorCode::new(Color::LightGreen, Color::Black),
         buffer: unsafe { Unique::new(0xb8000 as *mut _) },
     };
 
-    writer.write_str("Hello World!");
+    writer.write_byte(b'H');
+    writer.write_str("ello! ");
+    write!(writer, "The numebrs are {} and {}", 42, 1.0/3.0);
 }
