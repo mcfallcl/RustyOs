@@ -2,6 +2,27 @@
 
 use core::ptr::Unique;
 
+use spin::Mutex;
+
+pub static WRITER: Mutex<Writer> = Mutex::new(Writer {
+    column_pos: 0,
+    color_code: ColorCode::new(Color::LightGreen, Color::Black),
+    buffer: unsafe { Unique::new(0xb8000 as *mut _) },
+});
+
+macro_rules! println {
+    ($fmt:expr) => (print!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
+}
+
+macro_rules! print {
+    ($($arg:tt)*) => ({
+            use core::fmt::Write;
+            let mut writer = $crate::vga_buffer::WRITER.lock();
+            writer.write_fmt(format_args!($($arg)*)).unwrap();
+    });
+}
+
 #[allow(dead_code)]
 #[repr(u8)]
 pub enum Color {
@@ -32,6 +53,7 @@ impl ColorCode {
     }
 }
 
+#[derive(Clone, Copy)]
 #[repr(C)]
 struct ScreenChar {
     ascii_char: u8,
@@ -76,12 +98,21 @@ impl Writer {
         unsafe { self.buffer.get_mut() }
     }
 
-    fn new_line(&mut self) { /* TODO */}
-
-    pub fn write_str(&mut self, s: &str) {
-        for byte in s.bytes() {
-            self.write_byte(byte);
+    fn new_line(&mut self) {
+        for row in 0..(BUFFER_HEIGHT - 1) {
+            let buffer = self.buffer();
+            buffer.chars[row] = buffer.chars[row + 1];
         }
+        self.clear_row(BUFFER_HEIGHT - 1);
+        self.column_pos = 0;
+    }
+
+    fn clear_row(&mut self, row: usize) {
+        let blank = ScreenChar {
+            ascii_char: b' ',
+            color_code: self.color_code,
+        };
+        self.buffer().chars[row] = [blank; BUFFER_WIDTH];
     }
 }
 
@@ -94,16 +125,9 @@ impl ::core::fmt::Write for Writer {
     }
 }
 
-pub fn print_something() {
-    use core::fmt::Write;
-
-    let mut writer = Writer {
-        column_pos: 0,
-        color_code: ColorCode::new(Color::LightGreen, Color::Black),
-        buffer: unsafe { Unique::new(0xb8000 as *mut _) },
-    };
-
-    writer.write_byte(b'H');
-    writer.write_str("ello! ");
-    write!(writer, "The numebrs are {} and {}", 42, 1.0/3.0);
+pub fn clear_screen() {
+    for _ in 0..BUFFER_HEIGHT {
+        println!("");
+    }
 }
+
